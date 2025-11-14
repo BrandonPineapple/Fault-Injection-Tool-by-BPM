@@ -14,8 +14,7 @@ LIBRERIAS = ['pip', 'pyocd', 'pyelftools', 'cmsis-svd', 'pandas', 'numpy','matpl
 # ---------------------------
 MICROCONTROLADORES = {
     'stm32f407g-disc1': "STM32F407VGTx",
-    'msp430fr5994-launchpad': "MSP430FR5994",
-    'tiva-c-tm4c1294': "TM4C1294NCPDT"
+    'nucleo-f446re': "stm32f446retx"
 }
 
 
