@@ -6,6 +6,8 @@ from datetime import datetime
 from M_deteccion_stop import detectar_while_infinito
 from M_gestion_MCU_ram import MCU_RAM
 from M_gestion_mcu import  MCU
+from M_detector_campana import obtener_ultima_carpeta_campania
+
 
 def parse_int_optional(s):
     if s is None:
@@ -127,36 +129,38 @@ class GOLDEN:
         subs.sort(key=os.path.getmtime)
         return subs[-1]
 
-    def inicializar_archivos(self):
-        base_dir = os.path.dirname(self.csv_file) if self.csv_file else os.getcwd()
 
-        if getattr(self, 'campaign_dir', None) and os.path.isdir(self.campaign_dir):
-            campaign_dir = self.campaign_dir
-        else:
-            ultima = self.obtener_ultima_campania(base_dir)
-            if ultima:
-                campaign_dir = ultima
-            else:
-                campaign_name = datetime.now().strftime("campaign_%Y%m%d_%H%M%S")
-                campaign_dir = os.path.join(base_dir, campaign_name)
-                os.makedirs(campaign_dir, exist_ok=True)
-                print(f"[INFO] Carpeta de campaña creada: {campaign_dir}")
+    def inicializar_archivos(self):
+        """
+        Ahora la carpeta campaña SIEMPRE será la última detectada por el script externo.
+        LISTA_INYECCION.csv NO se mueve.
+        Solo los snapshots_gold.csv se guardan en la última campaña.
+        """
+
+        # ← ESTE es el cambio QUE PEDISTE
+        try:
+            campaign_dir = obtener_ultima_carpeta_campania()
+            print(f"[INFO] Carpeta de campaña detectada: {campaign_dir}")
+        except Exception as e:
+            raise RuntimeError(f"❌ No se pudo detectar campaña: {e}")
 
         self.campaign_dir = campaign_dir
+
+        # archivo donde se guardarán los snapshots GOLD (solo se crea ahí)
         self.snapshot_gold_csv = os.path.join(self.campaign_dir, 'snapshots_gold.csv')
 
         hay_memoria = any((f.ubicacion or '').lower() in ['ram', 'flash'] for f in self.lista_fallas)
         self.mem_cols_count = 256 if hay_memoria else 1
+
         mem_cols = [f"MEM_{i}" for i in range(self.mem_cols_count)]
-        header = ['Test_ID','Fault_ID', 'PC', 'SP', 'LR'] + [f'R{i}' for i in range(13)] + mem_cols
+        header = ['Test_ID', 'Fault_ID', 'PC', 'SP', 'LR'] + [f'R{i}' for i in range(13)] + mem_cols
 
         try:
             with open(self.snapshot_gold_csv, 'w', newline='') as f:
                 csv.writer(f).writerow(header)
-            print(f"[INFO] Creado archivo: {self.snapshot_gold_csv} (MEM cols: {self.mem_cols_count})")
+            print(f"[INFO] Creado archivo GOLD en: {self.snapshot_gold_csv}")
         except Exception as e:
-            print(f"[WARNING] No se pudo crear {self.snapshot_gold_csv}: {e}")
-
+            print(f"[ERROR] No se pudo crear {self.snapshot_gold_csv}: {e}")
 # ---------- snapshots / lectura ----------
     def snapshot_registros(self):
         if self.core is None:
@@ -439,10 +443,10 @@ def main_example():
     }
 
     # La GUI debe pasar estas rutas; aquí son ejemplos
-    elf_main = r"/Users/apple/Documents/PruebasST/LED/Debug/LED.elf"
-    elf_ram = r"/Users/apple/Documents/PruebasST/ScriptPruebas/Debug/ScriptPruebas.elf"
+    elf_main = r"C:\Users\brand\OneDrive\Documentos\CODIGOINYECTOR\Hola\Debug\Hola.elf"
+    elf_ram = r"C:\Users\brand\OneDrive\Documentos\CODIGOINYECTOR\LED2\Debug\LED2.elf"
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_dir = os.path.dirname(os.path.realpath(__file__))
     csv_file = os.path.join(script_dir, "LISTA_INYECCION.csv")
 
     # Abrir sesión principal (opcional — útil para fallas en RAM/registro)
@@ -460,6 +464,9 @@ def main_example():
 
 if __name__ == '__main__':
     main_example()
+
+
+
 
 
 
