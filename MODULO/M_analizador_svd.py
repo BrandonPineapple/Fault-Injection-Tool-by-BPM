@@ -9,7 +9,7 @@ class ListaRegistros:
         self.svd_repo = svd_repo
         self.lista_fallas = []          # Lista completa de bits
         self.peripherals_dict = {}      # Diccionario: periférico -> lista de bits
-        self.micro_svds = {"stm32f407g-disc1": "STM32F407.svd"}
+        self.micro_svds = {"stm32f407g-disc1": "STM32F407.svd", 'nucleo-f446re': 'STM32F446.svd'}
 
     def find_svd_path(self) -> Path:
         svd_file = self.micro_svds.get(self.micro)
