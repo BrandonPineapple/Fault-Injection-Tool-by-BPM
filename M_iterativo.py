@@ -1,4 +1,3 @@
-
 import os
 import pandas as pd
 import streamlit as st
@@ -41,7 +40,7 @@ def cargar_campana(nombre):
     faultlog = pd.read_csv(fault_path)
     analisis = pd.read_csv(analisis_path)
 
-    # --- Corrección para evitar errores de pyarrow ---
+    # Evitar errores pyarrow
     gold = gold.astype(str)
     after = after.astype(str)
     faultlog = faultlog.astype(str)
@@ -86,7 +85,6 @@ def main():
     # -------------------------------------------------
     st.header("Resumen técnico")
 
-    # Calculamos métricas reales desde 'analisis_avanzado.csv'
     total = len(analisis)
     silenciosas = len(analisis[analisis["Clasificacion"] == "silenciosa"])
     propagadas = len(analisis[analisis["Clasificacion"] == "propagada"])
@@ -106,15 +104,15 @@ def main():
     colA, colB = st.columns(2)
 
     with colA:
-        st.subheader("Clasificación Técnica (silenciosa/propagada/no aplicada)")
+        st.subheader("Clasificación Técnica")
         path = os.path.join(ruta, "grafico_clasificacion.png")
         if os.path.exists(path):
             st.image(path)
         else:
-            st.warning("No se encontró grafico_clasificacion_tecnica.png")
+            st.warning("No se encontró grafico_clasificacion.png")
 
     with colB:
-        st.subheader("Clasificación del Inyector (OK / hangs / no escrita, etc.)")
+        st.subheader("Clasificación del Inyector")
         path = os.path.join(ruta, "grafico_inyector.png")
         if os.path.exists(path):
             st.image(path)
@@ -148,23 +146,48 @@ def main():
 
     st.subheader(f"Detalle para Fault_ID {fid}")
 
-    # Buscamos filas correspondientes
-    gold_row = gold[gold["Fault_ID"] == fid].iloc[0]
-    after_row = after[after["Fault_ID"] == fid].iloc[0]
-    anal_row = analisis[analisis["Fault_ID"] == fid].iloc[0]
+    # GOLD
+    gold_match = gold[gold["Fault_ID"] == fid]
+    if gold_match.empty:
+        st.error("No existe snapshot GOLD para este Fault_ID")
+        return
+    gold_row = gold_match.iloc[0]
+
+    # AFTER
+    after_match = after[after["Fault_ID"] == fid]
+    if after_match.empty:
+        st.warning("No existe snapshot AFTER para este Fault_ID — probablemente no se inyectó o fue no aplicada.")
+        after_row = None
+    else:
+        after_row = after_match.iloc[0]
+
+    # ANALISIS
+    anal_match = analisis[analisis["Fault_ID"] == fid]
+    if anal_match.empty:
+        st.error("No existe registro de análisis para este Fault_ID")
+        return
+    anal_row = anal_match.iloc[0]
 
     st.write(f"**Clasificación Técnica:** {anal_row['Clasificacion']}")
     st.write(f"**Estado Inyector:** {anal_row['Estado_Final_Inyector']}")
 
     # Comparación GOLD vs AFTER
     st.subheader("Comparación GOLD vs AFTER")
-    comp_df = pd.DataFrame({
-        "Registro": gold_row.index,
-        "GOLD": gold_row.values,
-        "AFTER": after_row.values
-    })
 
-    comp_df = comp_df.astype(str)  # evitar errores pyarrow
+    if after_row is None:
+        comp_df = pd.DataFrame({
+            "Registro": gold_row.index,
+            "GOLD": gold_row.values,
+            "AFTER": ["N/A"] * len(gold_row)
+        })
+    else:
+        comp_df = pd.DataFrame({
+            "Registro": gold_row.index,
+            "GOLD": gold_row.values,
+            "AFTER": after_row.values
+        })
+
+    comp_df = comp_df.astype(str)
     st.dataframe(comp_df, use_container_width=True)
 
 
